@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  EMPLOYEE
+  MANAGER
+  ADMIN
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  HALF_DAY
+}
+
+enum LeaveType {
+  HOLIDAY
+  SICK_NO_DOC
+  SICK_WITH_DOC
+  EMERGENCY
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  joinCode  String   @unique
+  createdAt DateTime @default(now())
+
+  users       User[]
+  departments Department[]
+}
+
+model User {
+  id             String      @id @default(cuid())
+  name           String
+  email          String      @unique
+  passwordHash   String
+  role           Role        @default(EMPLOYEE)
+  companyId      String?
+  company        Company?    @relation(fields: [companyId], references: [id])
+  departmentId   String?
+  department     Department? @relation(fields: [departmentId], references: [id])
+  shiftStartTime String      @default("09:00")
+  shiftEndTime   String      @default("17:00")
+  isActive       Boolean     @default(true)
+  expoPushToken  String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  attendances  Attendance[]
+  leaveRequests LeaveRequest[]
+  leaveBalance  LeaveBalance?
+  managedDepts  Department[]   @relation("DepartmentManager")
+  lateAlerts    LateAlert[]
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  name      String
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+  managerId String?
+  manager   User?    @relation("DepartmentManager", fields: [managerId], references: [id])
+  employees User[]
+  createdAt DateTime @default(now())
+}
+
+model Attendance {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id])
+  date        DateTime         @db.Date
+  clockIn     DateTime?
+  clockOut    DateTime?
+  status      AttendanceStatus @default(PRESENT)
+  lateMinutes Int              @default(0)
+  notes       String?
+  createdAt   DateTime         @default(now())
+
+  @@unique([userId, date])
+}
+
+model LeaveBalance {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id])
+  year            Int
+  holidayTotal    Int      @default(28)
+  holidayUsed     Int      @default(0)
+  sickNoCertUsed  Int      @default(0)
+  sickNoCertLimit Int      @default(5)
+  updatedAt       DateTime @updatedAt
+}
+
+model LeaveRequest {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id])
+  type         LeaveType
+  startDate    DateTime    @db.Date
+  endDate      DateTime    @db.Date
+  totalDays    Int
+  reason       String?
+  status       LeaveStatus @default(PENDING)
+  documentUrl  String?
+  documentName String?
+  reviewedBy   String?
+  reviewNote   String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model LateAlert {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  date       DateTime  @db.Date
+  scheduledAt DateTime
+  notifiedAt  DateTime?
+  response   String?
+  resolvedAt  DateTime?
+  createdAt  DateTime  @default(now())
+}
