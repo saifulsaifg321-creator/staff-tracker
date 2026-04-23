@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "build": "npm install --prefix apps/api && npm run build --prefix apps/api",
+    "start": "node apps/api/dist/index.js",
     "api": "npm run dev --prefix apps/api",
-    "mobile": "npm run start --prefix apps/mobile",
-    "admin": "npm run dev --prefix apps/admin"
+    "mobile": "npm run start --prefix apps/mobile"
   }
 }
