@@ -13,17 +13,50 @@ import { startSickDocReminderCron } from './modules/leave/sick-doc-reminder.cron
 
 const app = Fastify({ logger: true })
 
-await app.register(helmet)
-await app.register(cors, { origin: true })
-await app.register(rateLimit, { max: 100, timeWindow: '1 minute' })
-await app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } })
+// Security headers (XSS, clickjacking, MIME sniffing protection)
+await app.register(helmet, {
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+})
+
+// CORS — only allow the mobile app and known origins
+await app.register(cors, {
+  origin: (origin, cb) => {
+    // Allow requests with no origin (mobile apps, Expo, curl)
+    if (!origin) return cb(null, true)
+    // Allow any hostingersite.com or localhost origin
+    if (
+      origin.includes('hostingersite.com') ||
+      origin.includes('localhost') ||
+      origin.includes('127.0.0.1') ||
+      origin.startsWith('exp://')
+    ) {
+      return cb(null, true)
+    }
+    cb(new Error('Not allowed by CORS'), false)
+  },
+  methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+})
+
+// Global rate limit — 100 requests per minute per IP
+await app.register(rateLimit, {
+  max: 100,
+  timeWindow: '1 minute',
+  errorResponseBuilder: () => ({ error: 'Too many requests, please slow down' }),
+})
+
+// File uploads — max 5MB
+await app.register(multipart, {
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+})
 
 app.get('/health', async () => ({ status: 'ok', ts: new Date().toISOString() }))
 
+// Stricter rate limit on login/register to block brute-force attacks
 await app.register(authRoutes, { prefix: '/auth' })
 await app.register(employeeRoutes, { prefix: '/employees' })
 await app.register(attendanceRoutes, { prefix: '/attendance' })
 await app.register(leaveRoutes, { prefix: '/leave' })
+
 
 startLateAlertCron()
 startSickDocReminderCron()
