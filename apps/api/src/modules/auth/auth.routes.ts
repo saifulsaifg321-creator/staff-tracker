@@ -1,9 +1,10 @@
 import type { FastifyInstance } from 'fastify'
-import { registerUser, loginUser, createCompany } from './auth.service.js'
+import { registerUser, loginUser, createCompany, createProject } from './auth.service.js'
 import { authenticate, requireManager } from '../../utils/auth-middleware.js'
 import { prisma } from '../../utils/prisma.js'
 
 export async function authRoutes(app: FastifyInstance) {
+  // Public: register (first manager only — no company/project yet)
   app.post('/register', async (req, reply) => {
     const body = req.body as any
     try {
@@ -30,8 +31,10 @@ export async function authRoutes(app: FastifyInstance) {
       where: { id: userId },
       select: {
         id: true, name: true, email: true, role: true,
+        companyId: true, projectId: true,
         shiftStartTime: true, shiftEndTime: true,
-        department: { select: { id: true, name: true } },
+        company: { select: { id: true, name: true, joinCode: true } },
+        project: { select: { id: true, name: true, joinCode: true } },
         leaveBalance: true,
       },
     })
@@ -45,20 +48,7 @@ export async function authRoutes(app: FastifyInstance) {
     return reply.send({ ok: true })
   })
 
-  // Manager: add employee or manager within their own company
-  app.post('/manager/add-user', { preHandler: requireManager }, async (req: any, reply: any) => {
-    const managerCompanyId = (req as any).user.companyId
-    if (!managerCompanyId) return reply.code(400).send({ error: 'You must set up your company first' })
-    const body = req.body as any
-    try {
-      const user = await registerUser({ ...body, companyId: managerCompanyId })
-      return reply.code(201).send({ user })
-    } catch (err: any) {
-      return reply.code(400).send({ error: err.message })
-    }
-  })
-
-  // Create a company and link the manager to it
+  // Manager: create company and link manager to it
   app.post('/company', { preHandler: requireManager }, async (req, reply) => {
     const userId = (req as any).user.sub
     const { name } = req.body as any
@@ -71,13 +61,51 @@ export async function authRoutes(app: FastifyInstance) {
     }
   })
 
-  // Get company info + join code
+  // Manager: get company info
   app.get('/company', { preHandler: requireManager }, async (req, reply) => {
     const userId = (req as any).user.sub
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { company: true },
+      include: { company: { include: { projects: true } } },
     })
     return reply.send({ company: user?.company })
+  })
+
+  // Manager: create a project under their company
+  app.post('/projects', { preHandler: requireManager }, async (req, reply) => {
+    const companyId = (req as any).user.companyId
+    if (!companyId) return reply.code(400).send({ error: 'Set up your company first' })
+    const { name } = req.body as any
+    try {
+      const project = await createProject(name, companyId)
+      return reply.code(201).send({ project })
+    } catch (err: any) {
+      return reply.code(400).send({ error: err.message })
+    }
+  })
+
+  // Manager: list all projects in their company
+  app.get('/projects', { preHandler: requireManager }, async (req, reply) => {
+    const companyId = (req as any).user.companyId
+    if (!companyId) return reply.send({ projects: [] })
+    const projects = await prisma.project.findMany({
+      where: { companyId },
+      include: { _count: { select: { users: true } } },
+      orderBy: { createdAt: 'asc' },
+    })
+    return reply.send({ projects })
+  })
+
+  // Manager: add employee or manager to their company/project
+  app.post('/manager/add-user', { preHandler: requireManager }, async (req, reply) => {
+    const { companyId, projectId } = (req as any).user
+    if (!companyId) return reply.code(400).send({ error: 'Set up your company first' })
+    const body = req.body as any
+    try {
+      const user = await registerUser({ ...body, companyId, projectId: body.projectId ?? projectId })
+      return reply.code(201).send({ user })
+    } catch (err: any) {
+      return reply.code(400).send({ error: err.message })
+    }
   })
 }

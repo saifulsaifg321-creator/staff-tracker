@@ -13,13 +13,19 @@ export async function createCompany(name: string) {
   return prisma.company.create({ data: { name, joinCode } })
 }
 
+export async function createProject(name: string, companyId: string) {
+  const joinCode = generateJoinCode(name)
+  return prisma.project.create({ data: { name, joinCode, companyId } })
+}
+
 export async function registerUser(data: {
   name: string
   email: string
   password: string
   role?: 'EMPLOYEE' | 'MANAGER' | 'ADMIN'
   companyId?: string
-  joinCode?: string
+  projectId?: string
+  projectJoinCode?: string
   shiftStartTime?: string
   shiftEndTime?: string
 }) {
@@ -27,11 +33,13 @@ export async function registerUser(data: {
   if (existing) throw new Error('Email already registered')
 
   let companyId = data.companyId
+  let projectId = data.projectId
 
-  if (data.joinCode) {
-    const company = await prisma.company.findUnique({ where: { joinCode: data.joinCode } })
-    if (!company) throw new Error('Invalid company join code')
-    companyId = company.id
+  if (data.projectJoinCode) {
+    const project = await prisma.project.findUnique({ where: { joinCode: data.projectJoinCode } })
+    if (!project) throw new Error('Invalid project join code')
+    projectId = project.id
+    companyId = project.companyId
   }
 
   const passwordHash = await argon2.hash(data.password)
@@ -42,6 +50,7 @@ export async function registerUser(data: {
       passwordHash,
       role: data.role ?? 'EMPLOYEE',
       companyId,
+      projectId,
       shiftStartTime: data.shiftStartTime ?? '09:00',
       shiftEndTime: data.shiftEndTime ?? '17:00',
     },
@@ -58,13 +67,13 @@ export async function registerUser(data: {
     },
   })
 
-  return { id: user.id, name: user.name, email: user.email, role: user.role, companyId: user.companyId }
+  return { id: user.id, name: user.name, email: user.email, role: user.role, companyId: user.companyId, projectId: user.projectId }
 }
 
 export async function loginUser(email: string, password: string) {
   const user = await prisma.user.findUnique({
     where: { email },
-    include: { company: true },
+    include: { company: true, project: true },
   })
   if (!user || !user.isActive) throw new Error('Invalid credentials')
 
@@ -77,6 +86,7 @@ export async function loginUser(email: string, password: string) {
     email: user.email,
     role: user.role,
     companyId: user.companyId,
+    projectId: user.projectId,
   })
 
   return {
@@ -88,6 +98,8 @@ export async function loginUser(email: string, password: string) {
       role: user.role,
       companyId: user.companyId,
       companyName: user.company?.name,
+      projectId: user.projectId,
+      projectName: user.project?.name,
     },
   }
 }

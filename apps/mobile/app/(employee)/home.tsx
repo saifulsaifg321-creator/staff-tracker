@@ -83,6 +83,7 @@ export default function EmployeeHome() {
         <View>
           <Text style={styles.greeting}>{greeting},</Text>
           <Text style={styles.name}>{user?.name}</Text>
+          {user?.project && <Text style={styles.projectName}>{user.project.name}</Text>}
           <Text style={styles.shift}>Shift: {user?.shiftStartTime} – {user?.shiftEndTime}</Text>
         </View>
         <TouchableOpacity onPress={handleLogout}>
@@ -188,6 +189,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
   greeting: { fontSize: 16, color: '#6b7280' },
   name: { fontSize: 26, fontWeight: '800', color: '#111', marginTop: 2 },
+  projectName: { fontSize: 13, color: '#1a56db', fontWeight: '600', marginTop: 3 },
   shift: { fontSize: 13, color: '#9ca3af', marginTop: 4 },
   logoutText: { color: '#ef4444', fontSize: 14, fontWeight: '600', marginTop: 4 },
   card: { backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 24, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },

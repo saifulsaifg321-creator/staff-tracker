@@ -8,8 +8,11 @@ interface User {
   email: string
   role: 'EMPLOYEE' | 'MANAGER' | 'ADMIN'
   companyId: string | null
+  projectId: string | null
   shiftStartTime: string
   shiftEndTime: string
+  company?: { id: string; name: string; joinCode: string } | null
+  project?: { id: string; name: string; joinCode: string } | null
   leaveBalance?: {
     holidayTotal: number
     holidayUsed: number
@@ -27,7 +30,7 @@ interface AuthState {
   refreshMe: () => Promise<void>
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   token: null,
 

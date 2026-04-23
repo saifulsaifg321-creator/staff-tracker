@@ -35,48 +35,47 @@ enum LeaveStatus {
 }
 
 model Company {
+  id        String    @id @default(cuid())
+  name      String
+  joinCode  String    @unique
+  createdAt DateTime  @default(now())
+
+  users    User[]
+  projects Project[]
+}
+
+model Project {
   id        String   @id @default(cuid())
   name      String
   joinCode  String   @unique
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
   createdAt DateTime @default(now())
 
-  users       User[]
-  departments Department[]
+  users User[]
 }
 
 model User {
-  id             String      @id @default(cuid())
+  id             String   @id @default(cuid())
   name           String
-  email          String      @unique
+  email          String   @unique
   passwordHash   String
-  role           Role        @default(EMPLOYEE)
+  role           Role     @default(EMPLOYEE)
   companyId      String?
-  company        Company?    @relation(fields: [companyId], references: [id])
-  departmentId   String?
-  department     Department? @relation(fields: [departmentId], references: [id])
-  shiftStartTime String      @default("09:00")
-  shiftEndTime   String      @default("17:00")
-  isActive       Boolean     @default(true)
+  company        Company? @relation(fields: [companyId], references: [id])
+  projectId      String?
+  project        Project? @relation(fields: [projectId], references: [id])
+  shiftStartTime String   @default("09:00")
+  shiftEndTime   String   @default("17:00")
+  isActive       Boolean  @default(true)
   expoPushToken  String?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  attendances  Attendance[]
+  attendances   Attendance[]
   leaveRequests LeaveRequest[]
   leaveBalance  LeaveBalance?
-  managedDepts  Department[]   @relation("DepartmentManager")
   lateAlerts    LateAlert[]
-}
-
-model Department {
-  id        String   @id @default(cuid())
-  name      String
-  companyId String?
-  company   Company? @relation(fields: [companyId], references: [id])
-  managerId String?
-  manager   User?    @relation("DepartmentManager", fields: [managerId], references: [id])
-  employees User[]
-  createdAt DateTime @default(now())
 }
 
 model Attendance {
@@ -125,13 +124,13 @@ model LeaveRequest {
 }
 
 model LateAlert {
-  id         String    @id @default(cuid())
-  userId     String
-  user       User      @relation(fields: [userId], references: [id])
-  date       DateTime  @db.Date
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  date        DateTime  @db.Date
   scheduledAt DateTime
   notifiedAt  DateTime?
-  response   String?
+  response    String?
   resolvedAt  DateTime?
-  createdAt  DateTime  @default(now())
+  createdAt   DateTime  @default(now())
 }

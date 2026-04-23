@@ -135,6 +135,12 @@ export default function ManagerDashboard() {
           <Text style={styles.addEmployeeText}>+ Add Employee</Text>
         </TouchableOpacity>
       </View>
+      <TouchableOpacity
+        style={styles.addProjectBtn}
+        onPress={() => router.push('/(manager)/add-project')}
+      >
+        <Text style={styles.addProjectText}>+ New Project</Text>
+      </TouchableOpacity>
 
       {/* Employee List */}
       <Text style={styles.section}>All Employees</Text>
@@ -227,4 +233,6 @@ const styles = StyleSheet.create({
   companyName: { fontSize: 17, fontWeight: '800', color: '#1e40af', marginBottom: 6 },
   companyCodeLabel: { fontSize: 12, color: '#6b7280', fontWeight: '600', textTransform: 'uppercase' },
   companyCode: { fontSize: 24, fontWeight: '900', color: '#1a56db', letterSpacing: 2, marginTop: 2 },
+  addProjectBtn: { backgroundColor: '#f0fdf4', borderRadius: 12, padding: 14, alignItems: 'center', marginBottom: 20, borderWidth: 1.5, borderColor: '#10b981' },
+  addProjectText: { color: '#065f46', fontSize: 14, fontWeight: '700' },
 })
