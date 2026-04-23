@@ -3,22 +3,20 @@ import { prisma } from '../../utils/prisma.js'
 import { sendPushNotification } from '../../utils/push.js'
 
 async function sendSickDocReminders() {
-  // Find all pending sick leave requests that still have no justification document
   const pending = await prisma.leaveRequest.findMany({
     where: {
       type: { in: ['SICK_WITH_DOC', 'SICK_NO_DOC'] },
       status: 'PENDING',
       documentUrl: null,
       user: {
-        leaveBalance: {
-          sickNoCertUsed: { gte: 5 },
-        },
+        leaveBalance: { sickNoCertUsed: { gte: 5 } },
       },
     },
     include: {
       user: {
-        include: {
-          department: { include: { manager: true } },
+        select: {
+          id: true, name: true, expoPushToken: true,
+          projectId: true, companyId: true,
         },
       },
     },
@@ -30,16 +28,27 @@ async function sendSickDocReminders() {
     if (emp.expoPushToken) {
       await sendPushNotification(emp.expoPushToken, {
         title: 'Sick Leave: Document Required',
-        body: 'Please upload your doctor\'s justification paper. Your sick leave is pending until received.',
+        body: "Please upload your doctor's justification paper. Your sick leave is pending until received.",
       })
     }
 
-    const manager = emp.department?.manager
-    if (manager?.expoPushToken) {
-      await sendPushNotification(manager.expoPushToken, {
-        title: 'Awaiting Sick Note',
-        body: `${emp.name} has not yet submitted a doctor's justification paper for their sick leave.`,
-      })
+    const managers = await prisma.user.findMany({
+      where: {
+        role: { in: ['MANAGER', 'ADMIN'] },
+        isActive: true,
+        expoPushToken: { not: null },
+        ...(emp.projectId ? { projectId: emp.projectId } : emp.companyId ? { companyId: emp.companyId } : {}),
+      },
+      select: { expoPushToken: true },
+    })
+
+    for (const mgr of managers) {
+      if (mgr.expoPushToken) {
+        await sendPushNotification(mgr.expoPushToken, {
+          title: 'Awaiting Sick Note',
+          body: `${emp.name} has not yet submitted a doctor's justification paper for their sick leave.`,
+        })
+      }
     }
 
     console.log(`Sick doc reminder sent for: ${emp.name} (leave ${request.id})`)
@@ -51,7 +60,6 @@ async function sendSickDocReminders() {
 }
 
 export function startSickDocReminderCron() {
-  // Every day at 10:00am
   cron.schedule('0 10 * * *', async () => {
     try {
       await sendSickDocReminders()

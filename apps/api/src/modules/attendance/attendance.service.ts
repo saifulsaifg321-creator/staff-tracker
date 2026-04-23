@@ -100,15 +100,22 @@ export async function checkAndAlertLate() {
       })
     }
 
-    const dept = await prisma.department.findFirst({
-      where: { id: emp.departmentId ?? '' },
-      include: { manager: true },
+    const managers = await prisma.user.findMany({
+      where: {
+        role: { in: ['MANAGER', 'ADMIN'] },
+        isActive: true,
+        expoPushToken: { not: null },
+        ...(emp.projectId ? { projectId: emp.projectId } : emp.companyId ? { companyId: emp.companyId } : {}),
+      },
+      select: { expoPushToken: true },
     })
-    if (dept?.manager?.expoPushToken) {
-      await sendPushNotification(dept.manager.expoPushToken, {
-        title: 'Employee Late',
-        body: `${emp.name} has not clocked in and is 20+ minutes late.`,
-      })
+    for (const mgr of managers) {
+      if (mgr.expoPushToken) {
+        await sendPushNotification(mgr.expoPushToken, {
+          title: 'Employee Late',
+          body: `${emp.name} has not clocked in and is 20+ minutes late.`,
+        })
+      }
     }
   }
 }
