@@ -1,4 +1,5 @@
 node_modules
-dist
 .env
 .expo
+apps/mobile/.expo
+apps/api/node_modules
