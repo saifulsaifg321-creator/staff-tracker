@@ -1,4 +1,4 @@
-import argon2 from 'argon2'
+import bcrypt from 'bcryptjs'
 import { prisma } from '../../utils/prisma.js'
 import { signToken } from '../../utils/jwt.js'
 
@@ -42,7 +42,7 @@ export async function registerUser(data: {
     companyId = project.companyId
   }
 
-  const passwordHash = await argon2.hash(data.password)
+  const passwordHash = await bcrypt.hash(data.password, 12)
   const user = await prisma.user.create({
     data: {
       name: data.name,
@@ -77,7 +77,7 @@ export async function loginUser(email: string, password: string) {
   })
   if (!user || !user.isActive) throw new Error('Invalid credentials')
 
-  const valid = await argon2.verify(user.passwordHash, password)
+  const valid = await bcrypt.compare(password, user.passwordHash)
   if (!valid) throw new Error('Invalid credentials')
 
   const token = signToken({
