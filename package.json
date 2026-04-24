@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "npm install --prefix apps/api --include=dev && ./apps/api/node_modules/.bin/tsc -p apps/api/tsconfig.json",
+    "build": "npm install --prefix apps/api --omit=dev",
     "start": "node apps/api/dist/index.js",
     "api": "npm run dev --prefix apps/api",
     "mobile": "npm run start --prefix apps/mobile"
