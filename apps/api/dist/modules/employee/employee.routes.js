@@ -1,15 +1,18 @@
-import { prisma } from '../../utils/prisma.js';
-import { requireManager, authenticate } from '../../utils/auth-middleware.js';
-export async function employeeRoutes(app) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.employeeRoutes = employeeRoutes;
+const prisma_js_1 = require("../../utils/prisma.js");
+const auth_middleware_js_1 = require("../../utils/auth-middleware.js");
+async function employeeRoutes(app) {
     // Manager: list employees filtered by project (or whole company if no projectId)
-    app.get('/', { preHandler: requireManager }, async (req, reply) => {
+    app.get('/', { preHandler: auth_middleware_js_1.requireManager }, async (req, reply) => {
         const { companyId, projectId } = req.user;
         const where = { role: 'EMPLOYEE', isActive: true };
         if (projectId)
             where.projectId = projectId;
         else if (companyId)
             where.companyId = companyId;
-        const employees = await prisma.user.findMany({
+        const employees = await prisma_js_1.prisma.user.findMany({
             where,
             select: {
                 id: true, name: true, email: true,
@@ -26,9 +29,9 @@ export async function employeeRoutes(app) {
         return reply.send({ employees });
     });
     // Manager: get single employee detail
-    app.get('/:id', { preHandler: requireManager }, async (req, reply) => {
+    app.get('/:id', { preHandler: auth_middleware_js_1.requireManager }, async (req, reply) => {
         const { id } = req.params;
-        const employee = await prisma.user.findUnique({
+        const employee = await prisma_js_1.prisma.user.findUnique({
             where: { id },
             select: {
                 id: true, name: true, email: true, role: true,
@@ -45,10 +48,10 @@ export async function employeeRoutes(app) {
         return reply.send({ employee });
     });
     // Manager: update employee shift or project
-    app.patch('/:id', { preHandler: requireManager }, async (req, reply) => {
+    app.patch('/:id', { preHandler: auth_middleware_js_1.requireManager }, async (req, reply) => {
         const { id } = req.params;
         const body = req.body;
-        const updated = await prisma.user.update({
+        const updated = await prisma_js_1.prisma.user.update({
             where: { id },
             data: {
                 shiftStartTime: body.shiftStartTime,
@@ -60,10 +63,10 @@ export async function employeeRoutes(app) {
         return reply.send({ id: updated.id, name: updated.name });
     });
     // Manager: reset annual leave balance
-    app.post('/:id/reset-leave', { preHandler: requireManager }, async (req, reply) => {
+    app.post('/:id/reset-leave', { preHandler: auth_middleware_js_1.requireManager }, async (req, reply) => {
         const { id } = req.params;
         const body = req.body;
-        await prisma.leaveBalance.upsert({
+        await prisma_js_1.prisma.leaveBalance.upsert({
             where: { userId: id },
             update: {
                 year: new Date().getFullYear(),
@@ -83,9 +86,9 @@ export async function employeeRoutes(app) {
         return reply.send({ ok: true });
     });
     // Employee: get own profile
-    app.get('/me/profile', { preHandler: authenticate }, async (req, reply) => {
+    app.get('/me/profile', { preHandler: auth_middleware_js_1.authenticate }, async (req, reply) => {
         const userId = req.user.sub;
-        const user = await prisma.user.findUnique({
+        const user = await prisma_js_1.prisma.user.findUnique({
             where: { id: userId },
             select: {
                 id: true, name: true, email: true, role: true,

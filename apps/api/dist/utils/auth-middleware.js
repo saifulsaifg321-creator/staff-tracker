@@ -1,18 +1,22 @@
-import { verifyToken } from './jwt.js';
-export async function authenticate(req, reply) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.authenticate = authenticate;
+exports.requireManager = requireManager;
+const jwt_js_1 = require("./jwt.js");
+async function authenticate(req, reply) {
     const auth = req.headers.authorization;
     if (!auth?.startsWith('Bearer ')) {
         return reply.code(401).send({ error: 'Missing token' });
     }
     try {
-        const payload = verifyToken(auth.slice(7));
+        const payload = (0, jwt_js_1.verifyToken)(auth.slice(7));
         req.user = payload;
     }
     catch {
         return reply.code(401).send({ error: 'Invalid token' });
     }
 }
-export async function requireManager(req, reply) {
+async function requireManager(req, reply) {
     await authenticate(req, reply);
     const user = req.user;
     if (!['MANAGER', 'ADMIN'].includes(user?.role)) {

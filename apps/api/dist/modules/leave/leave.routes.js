@@ -1,12 +1,15 @@
-import { authenticate, requireManager } from '../../utils/auth-middleware.js';
-import { requestLeave, reviewLeave, uploadLeaveDoc } from './leave.service.js';
-import { prisma } from '../../utils/prisma.js';
-import { createClient } from '@supabase/supabase-js';
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.leaveRoutes = leaveRoutes;
+const auth_middleware_js_1 = require("../../utils/auth-middleware.js");
+const leave_service_js_1 = require("./leave.service.js");
+const prisma_js_1 = require("../../utils/prisma.js");
+const supabase_js_1 = require("@supabase/supabase-js");
+const supabase = (0, supabase_js_1.createClient)(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-export async function leaveRoutes(app) {
+async function leaveRoutes(app) {
     // Employee: submit leave request
-    app.post('/request', { preHandler: authenticate }, async (req, reply) => {
+    app.post('/request', { preHandler: auth_middleware_js_1.authenticate }, async (req, reply) => {
         const userId = req.user.sub;
         const body = req.body;
         const allowed = ['HOLIDAY', 'SICK_NO_DOC', 'SICK_WITH_DOC', 'EMERGENCY'];
@@ -15,7 +18,7 @@ export async function leaveRoutes(app) {
         if (!body?.startDate || !body?.endDate)
             return reply.code(400).send({ error: 'Start and end date required' });
         try {
-            const result = await requestLeave(userId, body);
+            const result = await (0, leave_service_js_1.requestLeave)(userId, body);
             return reply.code(201).send(result);
         }
         catch (err) {
@@ -23,11 +26,11 @@ export async function leaveRoutes(app) {
         }
     });
     // Employee: upload sick leave document (own requests only)
-    app.post('/request/:id/upload', { preHandler: authenticate }, async (req, reply) => {
+    app.post('/request/:id/upload', { preHandler: auth_middleware_js_1.authenticate }, async (req, reply) => {
         const userId = req.user.sub;
         const { id } = req.params;
         // Verify this request belongs to this employee before accepting upload
-        const existing = await prisma.leaveRequest.findUnique({ where: { id } });
+        const existing = await prisma_js_1.prisma.leaveRequest.findUnique({ where: { id } });
         if (!existing || existing.userId !== userId) {
             return reply.code(403).send({ error: 'Not authorised' });
         }
@@ -50,20 +53,20 @@ export async function leaveRoutes(app) {
         if (error)
             return reply.code(500).send({ error: 'Upload failed' });
         const { data: urlData } = supabase.storage.from('leave-docs').getPublicUrl(path);
-        await uploadLeaveDoc(id, userId, urlData.publicUrl, data.filename);
+        await (0, leave_service_js_1.uploadLeaveDoc)(id, userId, urlData.publicUrl, data.filename);
         return reply.send({ url: urlData.publicUrl });
     });
     // Employee: view own leave requests only
-    app.get('/my', { preHandler: authenticate }, async (req, reply) => {
+    app.get('/my', { preHandler: auth_middleware_js_1.authenticate }, async (req, reply) => {
         const userId = req.user.sub;
-        const requests = await prisma.leaveRequest.findMany({
+        const requests = await prisma_js_1.prisma.leaveRequest.findMany({
             where: { userId },
             orderBy: { createdAt: 'desc' },
         });
         return reply.send({ requests });
     });
     // Manager: all leave requests for their company's employees only
-    app.get('/manager/all', { preHandler: requireManager }, async (req, reply) => {
+    app.get('/manager/all', { preHandler: auth_middleware_js_1.requireManager }, async (req, reply) => {
         const { companyId, projectId } = req.user;
         const { status } = req.query;
         const where = {};
@@ -76,7 +79,7 @@ export async function leaveRoutes(app) {
         else if (companyId) {
             where.user = { companyId };
         }
-        const requests = await prisma.leaveRequest.findMany({
+        const requests = await prisma_js_1.prisma.leaveRequest.findMany({
             where,
             include: {
                 user: { select: { id: true, name: true, email: true, leaveBalance: true } },
@@ -86,10 +89,10 @@ export async function leaveRoutes(app) {
         return reply.send({ requests });
     });
     // Manager: view sick leave document folder for a specific employee (must be in their company)
-    app.get('/manager/employee/:userId/folder', { preHandler: requireManager }, async (req, reply) => {
+    app.get('/manager/employee/:userId/folder', { preHandler: auth_middleware_js_1.requireManager }, async (req, reply) => {
         const { companyId, projectId } = req.user;
         const { userId } = req.params;
-        const employee = await prisma.user.findUnique({ where: { id: userId } });
+        const employee = await prisma_js_1.prisma.user.findUnique({ where: { id: userId } });
         if (!employee)
             return reply.code(404).send({ error: 'Employee not found' });
         // Verify employee belongs to manager's project/company
@@ -97,7 +100,7 @@ export async function leaveRoutes(app) {
             return reply.code(403).send({ error: 'Not authorised' });
         if (!projectId && companyId && employee.companyId !== companyId)
             return reply.code(403).send({ error: 'Not authorised' });
-        const requests = await prisma.leaveRequest.findMany({
+        const requests = await prisma_js_1.prisma.leaveRequest.findMany({
             where: { userId, documentUrl: { not: null } },
             include: { user: { select: { id: true, name: true } } },
             orderBy: { createdAt: 'desc' },
@@ -105,7 +108,7 @@ export async function leaveRoutes(app) {
         return reply.send({ folder: requests });
     });
     // Manager: approve or reject (must belong to their company)
-    app.post('/manager/review/:id', { preHandler: requireManager }, async (req, reply) => {
+    app.post('/manager/review/:id', { preHandler: auth_middleware_js_1.requireManager }, async (req, reply) => {
         const managerId = req.user.sub;
         const managerCompanyId = req.user.companyId;
         const { id } = req.params;
@@ -114,7 +117,7 @@ export async function leaveRoutes(app) {
             return reply.code(400).send({ error: 'Decision must be APPROVED or REJECTED' });
         }
         try {
-            const result = await reviewLeave(id, managerId, managerCompanyId, body.decision, body.reviewNote);
+            const result = await (0, leave_service_js_1.reviewLeave)(id, managerId, managerCompanyId, body.decision, body.reviewNote);
             return reply.send(result);
         }
         catch (err) {

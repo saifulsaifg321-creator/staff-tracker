@@ -1,5 +1,10 @@
-import { prisma } from '../../utils/prisma.js';
-import { sendPushNotification } from '../../utils/push.js';
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.requestLeave = requestLeave;
+exports.uploadLeaveDoc = uploadLeaveDoc;
+exports.reviewLeave = reviewLeave;
+const prisma_js_1 = require("../../utils/prisma.js");
+const push_js_1 = require("../../utils/push.js");
 function calcWorkDays(start, end) {
     let count = 0;
     const cur = new Date(start);
@@ -11,8 +16,8 @@ function calcWorkDays(start, end) {
     }
     return count;
 }
-export async function requestLeave(userId, data) {
-    const balance = await prisma.leaveBalance.findUnique({ where: { userId } });
+async function requestLeave(userId, data) {
+    const balance = await prisma_js_1.prisma.leaveBalance.findUnique({ where: { userId } });
     if (!balance)
         throw new Error('Leave balance not found');
     const start = new Date(data.startDate);
@@ -35,7 +40,7 @@ export async function requestLeave(userId, data) {
             throw new Error(`Only ${remaining} self-certified sick days remaining. Please upload a doctor's note.`);
         }
     }
-    const request = await prisma.leaveRequest.create({
+    const request = await prisma_js_1.prisma.leaveRequest.create({
         data: {
             userId,
             type: data.type,
@@ -47,12 +52,12 @@ export async function requestLeave(userId, data) {
         },
     });
     // Notify managers in the same project/company
-    const user = await prisma.user.findUnique({
+    const user = await prisma_js_1.prisma.user.findUnique({
         where: { id: userId },
         select: { name: true, projectId: true, companyId: true },
     });
     if (user) {
-        const managers = await prisma.user.findMany({
+        const managers = await prisma_js_1.prisma.user.findMany({
             where: {
                 role: { in: ['MANAGER', 'ADMIN'] },
                 isActive: true,
@@ -67,7 +72,7 @@ export async function requestLeave(userId, data) {
                     : 'emergency leave';
         for (const m of managers) {
             if (m.expoPushToken) {
-                await sendPushNotification(m.expoPushToken, {
+                await (0, push_js_1.sendPushNotification)(m.expoPushToken, {
                     title: 'Leave Request',
                     body: `${user.name} has requested ${typeLabel} (${totalDays} day${totalDays > 1 ? 's' : ''})`,
                 });
@@ -76,18 +81,18 @@ export async function requestLeave(userId, data) {
     }
     return request;
 }
-export async function uploadLeaveDoc(leaveRequestId, userId, fileUrl, fileName) {
-    const request = await prisma.leaveRequest.findUnique({ where: { id: leaveRequestId } });
+async function uploadLeaveDoc(leaveRequestId, userId, fileUrl, fileName) {
+    const request = await prisma_js_1.prisma.leaveRequest.findUnique({ where: { id: leaveRequestId } });
     // Verify the request belongs to this employee — prevents accessing other employees' leave
     if (!request || request.userId !== userId)
         throw new Error('Leave request not found');
-    return prisma.leaveRequest.update({
+    return prisma_js_1.prisma.leaveRequest.update({
         where: { id: leaveRequestId },
         data: { documentUrl: fileUrl, documentName: fileName },
     });
 }
-export async function reviewLeave(leaveRequestId, managerId, managerCompanyId, decision, reviewNote) {
-    const request = await prisma.leaveRequest.findUnique({
+async function reviewLeave(leaveRequestId, managerId, managerCompanyId, decision, reviewNote) {
+    const request = await prisma_js_1.prisma.leaveRequest.findUnique({
         where: { id: leaveRequestId },
         include: { user: true },
     });
@@ -99,26 +104,26 @@ export async function reviewLeave(leaveRequestId, managerId, managerCompanyId, d
     if (managerCompanyId && request.user.companyId !== managerCompanyId) {
         throw new Error('Not authorised to review this request');
     }
-    const updated = await prisma.leaveRequest.update({
+    const updated = await prisma_js_1.prisma.leaveRequest.update({
         where: { id: leaveRequestId },
         data: { status: decision, reviewedBy: managerId, reviewNote },
     });
     if (decision === 'APPROVED') {
         if (request.type === 'HOLIDAY') {
-            await prisma.leaveBalance.update({
+            await prisma_js_1.prisma.leaveBalance.update({
                 where: { userId: request.userId },
                 data: { holidayUsed: { increment: request.totalDays } },
             });
         }
         if (request.type === 'SICK_NO_DOC') {
-            await prisma.leaveBalance.update({
+            await prisma_js_1.prisma.leaveBalance.update({
                 where: { userId: request.userId },
                 data: { sickNoCertUsed: { increment: request.totalDays } },
             });
         }
     }
     if (request.user.expoPushToken) {
-        await sendPushNotification(request.user.expoPushToken, {
+        await (0, push_js_1.sendPushNotification)(request.user.expoPushToken, {
             title: `Leave ${decision === 'APPROVED' ? 'Approved' : 'Rejected'}`,
             body: `Your ${request.type.replace(/_/g, ' ').toLowerCase()} request has been ${decision.toLowerCase()}.`,
         });
