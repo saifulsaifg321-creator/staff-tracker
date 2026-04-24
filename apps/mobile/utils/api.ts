@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store'
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001'
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://lightgreen-finch-671233.hostingersite.com'
 
 async function getToken() {
   return SecureStore.getItemAsync('token')
