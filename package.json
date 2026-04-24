@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "npm install --prefix apps/api --omit=dev",
-    "start": "node apps/api/dist/index.js",
+    "start": "cd apps/api && node dist/index.js",
     "api": "npm run dev --prefix apps/api",
     "mobile": "npm run start --prefix apps/mobile"
   }
