@@ -43,7 +43,7 @@ export default function AddEmployeeScreen() {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
         <View style={styles.topBar}>
