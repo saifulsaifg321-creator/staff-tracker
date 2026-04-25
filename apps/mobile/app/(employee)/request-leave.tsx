@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, Alert, ActivityIndicator, TextInput
+  ScrollView, Alert, ActivityIndicator, TextInput, KeyboardAvoidingView, Platform
 } from 'react-native'
 import { router } from 'expo-router'
 import * as DocumentPicker from 'expo-document-picker'
 import { apiFetch } from '../../utils/api'
 import { useAuthStore } from '../../stores/auth.store'
+
+const BASE_URL = 'https://lightgreen-finch-671233.hostingersite.com'
 
 const LEAVE_TYPES = [
   { value: 'HOLIDAY', label: 'Annual Holiday', color: '#1a56db' },
@@ -42,7 +44,7 @@ export default function RequestLeaveScreen() {
         const form = new FormData()
         form.append('file', { uri: docFile.uri, name: docFile.name, type: docFile.mimeType } as any)
         const token = (await import('expo-secure-store')).getItemAsync('token')
-        await fetch(`${process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001'}/leave/request/${request.id}/upload`, {
+        await fetch(`${BASE_URL}/leave/request/${request.id}/upload`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${await token}` },
           body: form,
@@ -60,77 +62,79 @@ export default function RequestLeaveScreen() {
   }
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.back}>Back</Text>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
+        <View style={styles.topBar}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={styles.back}>Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>Request Leave</Text>
+          <View style={{ width: 48 }} />
+        </View>
+
+        <Text style={styles.label}>Leave Type</Text>
+        <View style={styles.typeRow}>
+          {LEAVE_TYPES.map((t) => (
+            <TouchableOpacity
+              key={t.value}
+              style={[styles.typeBtn, leaveType === t.value && { backgroundColor: t.color, borderColor: t.color }]}
+              onPress={() => setLeaveType(t.value)}
+            >
+              <Text style={[styles.typeBtnText, leaveType === t.value && { color: '#fff' }]}>
+                {t.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.label}>Start Date</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="YYYY-MM-DD"
+          value={startDate}
+          onChangeText={setStartDate}
+          placeholderTextColor="#999"
+        />
+
+        <Text style={styles.label}>End Date</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="YYYY-MM-DD"
+          value={endDate}
+          onChangeText={setEndDate}
+          placeholderTextColor="#999"
+        />
+
+        <Text style={styles.label}>Reason (optional)</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          placeholder="Describe the reason..."
+          value={reason}
+          onChangeText={setReason}
+          multiline
+          numberOfLines={3}
+          placeholderTextColor="#999"
+        />
+
+        {(leaveType === 'SICK_WITH_DOC' || leaveType === 'SICK_NO_DOC') && (
+          <>
+            <Text style={styles.label}>Doctor's Note / Justification</Text>
+            <TouchableOpacity style={styles.uploadBtn} onPress={pickDocument}>
+              <Text style={styles.uploadBtnText}>
+                {docFile ? docFile.name : 'Upload Document (PDF or Image)'}
+              </Text>
+            </TouchableOpacity>
+            {leaveType === 'SICK_WITH_DOC' && !docFile && (
+              <Text style={styles.hint}>A doctor's note is required for this leave type.</Text>
+            )}
+          </>
+        )}
+
+        <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={loading}>
+          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Submit Request</Text>}
         </TouchableOpacity>
-        <Text style={styles.title}>Request Leave</Text>
-        <View style={{ width: 48 }} />
-      </View>
-
-      <Text style={styles.label}>Leave Type</Text>
-      <View style={styles.typeRow}>
-        {LEAVE_TYPES.map((t) => (
-          <TouchableOpacity
-            key={t.value}
-            style={[styles.typeBtn, leaveType === t.value && { backgroundColor: t.color, borderColor: t.color }]}
-            onPress={() => setLeaveType(t.value)}
-          >
-            <Text style={[styles.typeBtnText, leaveType === t.value && { color: '#fff' }]}>
-              {t.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <Text style={styles.label}>Start Date</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="YYYY-MM-DD"
-        value={startDate}
-        onChangeText={setStartDate}
-        placeholderTextColor="#999"
-      />
-
-      <Text style={styles.label}>End Date</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="YYYY-MM-DD"
-        value={endDate}
-        onChangeText={setEndDate}
-        placeholderTextColor="#999"
-      />
-
-      <Text style={styles.label}>Reason (optional)</Text>
-      <TextInput
-        style={[styles.input, styles.textArea]}
-        placeholder="Describe the reason..."
-        value={reason}
-        onChangeText={setReason}
-        multiline
-        numberOfLines={3}
-        placeholderTextColor="#999"
-      />
-
-      {(leaveType === 'SICK_WITH_DOC' || leaveType === 'SICK_NO_DOC') && (
-        <>
-          <Text style={styles.label}>Doctor's Note / Justification</Text>
-          <TouchableOpacity style={styles.uploadBtn} onPress={pickDocument}>
-            <Text style={styles.uploadBtnText}>
-              {docFile ? docFile.name : 'Upload Document (PDF or Image)'}
-            </Text>
-          </TouchableOpacity>
-          {leaveType === 'SICK_WITH_DOC' && !docFile && (
-            <Text style={styles.hint}>A doctor's note is required for this leave type.</Text>
-          )}
-        </>
-      )}
-
-      <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Submit Request</Text>}
-      </TouchableOpacity>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   )
 }
 

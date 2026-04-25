@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, Alert, ActivityIndicator, TextInput, Linking
+  TouchableOpacity, Alert, ActivityIndicator, TextInput, Linking,
+  KeyboardAvoidingView, Platform
 } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { apiFetch } from '../../utils/api'
@@ -41,6 +42,7 @@ export default function ReviewLeaveScreen() {
   const sickLeft = balance ? balance.sickNoCertLimit - balance.sickNoCertUsed : 0
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -120,6 +122,7 @@ export default function ReviewLeaveScreen() {
         </TouchableOpacity>
       </View>
     </ScrollView>
+    </KeyboardAvoidingView>
   )
 }
 

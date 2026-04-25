@@ -71,7 +71,9 @@ async function authRoutes(app) {
     });
     // Manager: create a project under their company
     app.post('/projects', { preHandler: auth_middleware_js_1.requireManager }, async (req, reply) => {
-        const companyId = req.user.companyId;
+        const userId = req.user.sub;
+        const manager = await prisma_js_1.prisma.user.findUnique({ where: { id: userId }, select: { companyId: true } });
+        const companyId = manager?.companyId;
         if (!companyId)
             return reply.code(400).send({ error: 'Set up your company first' });
         const { name } = req.body;
@@ -85,7 +87,9 @@ async function authRoutes(app) {
     });
     // Manager: list all projects in their company
     app.get('/projects', { preHandler: auth_middleware_js_1.requireManager }, async (req, reply) => {
-        const companyId = req.user.companyId;
+        const userId = req.user.sub;
+        const manager = await prisma_js_1.prisma.user.findUnique({ where: { id: userId }, select: { companyId: true } });
+        const companyId = manager?.companyId;
         if (!companyId)
             return reply.send({ projects: [] });
         const projects = await prisma_js_1.prisma.project.findMany({
@@ -97,7 +101,9 @@ async function authRoutes(app) {
     });
     // Manager: add employee or manager to their company/project
     app.post('/manager/add-user', { preHandler: auth_middleware_js_1.requireManager }, async (req, reply) => {
-        const { companyId, projectId } = req.user;
+        const userId = req.user.sub;
+        const manager = await prisma_js_1.prisma.user.findUnique({ where: { id: userId }, select: { companyId: true, projectId: true } });
+        const { companyId, projectId } = manager ?? {};
         if (!companyId)
             return reply.code(400).send({ error: 'Set up your company first' });
         const body = req.body;

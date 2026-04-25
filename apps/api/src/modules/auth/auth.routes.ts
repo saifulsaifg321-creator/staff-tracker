@@ -73,7 +73,9 @@ export async function authRoutes(app: FastifyInstance) {
 
   // Manager: create a project under their company
   app.post('/projects', { preHandler: requireManager }, async (req, reply) => {
-    const companyId = (req as any).user.companyId
+    const userId = (req as any).user.sub
+    const manager = await prisma.user.findUnique({ where: { id: userId }, select: { companyId: true } })
+    const companyId = manager?.companyId
     if (!companyId) return reply.code(400).send({ error: 'Set up your company first' })
     const { name } = req.body as any
     try {
@@ -86,7 +88,9 @@ export async function authRoutes(app: FastifyInstance) {
 
   // Manager: list all projects in their company
   app.get('/projects', { preHandler: requireManager }, async (req, reply) => {
-    const companyId = (req as any).user.companyId
+    const userId = (req as any).user.sub
+    const manager = await prisma.user.findUnique({ where: { id: userId }, select: { companyId: true } })
+    const companyId = manager?.companyId
     if (!companyId) return reply.send({ projects: [] })
     const projects = await prisma.project.findMany({
       where: { companyId },
@@ -98,7 +102,9 @@ export async function authRoutes(app: FastifyInstance) {
 
   // Manager: add employee or manager to their company/project
   app.post('/manager/add-user', { preHandler: requireManager }, async (req, reply) => {
-    const { companyId, projectId } = (req as any).user
+    const userId = (req as any).user.sub
+    const manager = await prisma.user.findUnique({ where: { id: userId }, select: { companyId: true, projectId: true } })
+    const { companyId, projectId } = manager ?? {}
     if (!companyId) return reply.code(400).send({ error: 'Set up your company first' })
     const body = req.body as any
     try {
